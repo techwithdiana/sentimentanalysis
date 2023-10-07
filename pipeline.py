@@ -3,6 +3,9 @@ import transformers
 from network import LLM
 from tqdm import tqdm
 from sklearn.metrics import accuracy_score
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+import matplotlib.pyplot as plt
+import random
 
 
 class Pipeline():
@@ -56,7 +59,7 @@ class Pipeline():
 
         for epoch in range(n_epochs):
             self.nnet.train()
-            if (epoch != 0 and epoch % 2 == 0) or epoch == n_epochs-1:
+            if epoch != 0 and epoch % 2 == 0:
                 pred = self.inference(val_loader)
                 self.evaluate(val_dataset.labels, pred)
             pbar = tqdm(trn_loader)
@@ -70,6 +73,10 @@ class Pipeline():
                 self.scaler.update()
                 self.scheduler.step()
                 pbar.set_description(f"Loss: {loss.item(): .4f}")
+        pred = self.inference(val_loader)
+        self.evaluate(val_dataset.labels, pred)
+        self.confusion_matrix(val_dataset.labels, pred)
+        self.analysis(val_dataset.labels, pred, val_dataset.text)
 
     @torch.no_grad()
     def inference(self, data_loader):
@@ -99,3 +106,29 @@ class Pipeline():
             y_pred (np.ndarray): predictions
         """
         print(f"Accuracy: {accuracy_score(y_true, y_pred)*100:.2f}%")
+
+
+    def analysis(self, y_true, y_pred, text):
+        """do analysis of some examples
+
+        Args:
+            y_true (np.ndarray): ground truth
+            y_pred (np.ndarray): predictions
+            text (list): text
+        """
+        idx = [random.choice(range(len(text))) for _ in range(3)]
+        for i in idx:
+            print(f"\n{text[i]}")
+            print()
+            print(f'True sentiment: {y_true[i]}. Predicted sentiment: {y_pred[i]}\n')            
+
+    def confusion_matrix(self, y_true, y_pred):
+        """save the confusion matrix as image
+
+        Args:
+            y_true (np.ndarray): ground truth
+            y_pred (np.ndarray): predictions
+        """
+        cf = confusion_matrix(y_true, y_pred)
+        ConfusionMatrixDisplay(cf).plot()
+        plt.savefig('foo.png')
